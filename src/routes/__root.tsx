@@ -29,14 +29,18 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "IQTS" },
+      { name: "description", content: "PartSight Connect links industrial quality images to specific parts using QR codes for offline archiving." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "IQTS" },
+      { property: "og:description", content: "PartSight Connect links industrial quality images to specific parts using QR codes for offline archiving." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "IQTS" },
+      { name: "twitter:description", content: "PartSight Connect links industrial quality images to specific parts using QR codes for offline archiving." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/10418a62-8a20-4fc7-a533-e0a294b6bb6d/id-preview-c72e6830--867db636-2795-400c-9d7c-a9016a0efac9.lovable.app-1777685860570.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/10418a62-8a20-4fc7-a533-e0a294b6bb6d/id-preview-c72e6830--867db636-2795-400c-9d7c-a9016a0efac9.lovable.app-1777685860570.png" },
     ],
     links: [
       {
