@@ -93,13 +93,15 @@ function saveMock(state: MockState) {
   localStorage.setItem(MOCK_KEY, JSON.stringify(state));
 }
 
-const listeners = new Set<(p: MockImage | null) => void>();
+type PendingPayload = { filename: string; createdAt: number; status: QualityStatus } | null;
+const listeners = new Set<(p: PendingPayload) => void>();
 
 function emit(state: MockState) {
   const latest = state.pending.length ? state.pending[state.pending.length - 1] : null;
-  listeners.forEach((cb) =>
-    cb(latest ? { filename: latest.filename, createdAt: latest.createdAt, status: latest.status } : null),
-  );
+  const payload: PendingPayload = latest
+    ? { filename: latest.filename, createdAt: latest.createdAt, status: latest.status }
+    : null;
+  listeners.forEach((cb) => cb(payload));
 }
 
 // Generate a small synthetic JPEG-ish image as a data URL (canvas-based)
@@ -219,8 +221,10 @@ const mockApi: IQTSApi = {
     emit(state);
   },
   onPendingChange(cb) {
-    listeners.add(cb as (p: MockImage | null) => void);
-    return () => listeners.delete(cb as (p: MockImage | null) => void);
+    listeners.add(cb);
+    return () => {
+      listeners.delete(cb);
+    };
   },
   async getPending() {
     const { pending } = loadMock();
