@@ -244,7 +244,7 @@ ipcMain.handle("iqts:associateScan", async (_e, partId) => {
   }
   if (idx === -1) return null;
   const img = pending.splice(idx, 1)[0];
-  const partRef = String(partId).split("_")[0];
+  const partRef = String(partId).split("T")[0];
   const ext = path.extname(img.filename) || ".jpg";
   const destPath = path.join(config.processedFolder, `${partId}${ext}`);
   try {
