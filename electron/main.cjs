@@ -33,6 +33,10 @@ const defaultConfig = {
   associationWindowMs: 5000,
   station: os.hostname() || "STATION-01",
   operator: "OP-001",
+  // Siemens PLC trigger listener — PLC sends a TCP message with the part reference
+  // to request label generation/printing. Format: plain text "<PART_REF>\n" or JSON
+  // {"partRef":"PR-12345"}.
+  plc: { listenHost: "0.0.0.0", listenPort: 9500, enabled: true },
 };
 
 function loadConfig() {
