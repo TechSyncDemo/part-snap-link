@@ -101,6 +101,7 @@ function saveMock(state: MockState) {
 
 type PendingPayload = { filename: string; createdAt: number; status: QualityStatus } | null;
 const listeners = new Set<(p: PendingPayload) => void>();
+const plcListeners = new Set<(partRef: string) => void>();
 
 function emit(state: MockState) {
   const latest = state.pending.length ? state.pending[state.pending.length - 1] : null;
