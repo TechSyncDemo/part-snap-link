@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Printer, Tag, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Printer, Tag, Loader2, CheckCircle2, AlertTriangle, Radio } from "lucide-react";
 import { getBridge } from "@/lib/iqts-bridge";
 import { Button } from "@/components/ui/button";
 
@@ -12,18 +12,34 @@ interface Props {
 
 export function LabelGenerator({ partRef, onPartRefChange }: Props) {
   const [busy, setBusy] = useState(false);
-  const [last, setLast] = useState<{ partId: string; printed: boolean; error?: string } | null>(null);
+  const [last, setLast] = useState<{ partId: string; printed: boolean; error?: string; trigger?: "manual" | "plc" } | null>(null);
+  const [plcArmed, setPlcArmed] = useState(true);
 
-  async function generate() {
-    if (!partRef.trim()) return;
+  async function generate(trigger: "manual" | "plc" = "manual", refOverride?: string) {
+    const ref = (refOverride ?? partRef).trim().toUpperCase();
+    if (!ref) return;
     setBusy(true);
     try {
-      const res = await bridge.generateLabel(partRef.trim().toUpperCase());
-      setLast({ partId: res.partId, printed: res.printed, error: res.error });
+      const res = await bridge.generateLabel(ref);
+      setLast({ partId: res.partId, printed: res.printed, error: res.error, trigger });
     } finally {
       setBusy(false);
     }
   }
+
+  // Listen for Siemens PLC print trigger
+  useEffect(() => {
+    const off = bridge.onPlcTrigger((triggeredRef) => {
+      if (!plcArmed) return;
+      const ref = (triggeredRef || partRef).trim().toUpperCase();
+      if (ref) {
+        if (triggeredRef) onPartRefChange(ref);
+        void generate("plc", ref);
+      }
+    });
+    return off;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plcArmed, partRef]);
 
   return (
     <div className="rounded-xl border bg-card shadow-industrial overflow-hidden">
@@ -49,13 +65,45 @@ export function LabelGenerator({ partRef, onPartRefChange }: Props) {
             />
             <Button
               size="lg"
-              onClick={generate}
+              onClick={() => void generate("manual")}
               disabled={busy || !partRef.trim()}
               className="px-6 text-base font-semibold"
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
               <span className="ml-2">Generate Label</span>
             </Button>
+          </div>
+        </div>
+
+        {/* PLC trigger row */}
+        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Radio className={`h-4 w-4 ${plcArmed ? "text-success" : "text-muted-foreground"}`} />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider">Siemens PLC trigger</p>
+              <p className="text-[11px] text-muted-foreground">
+                {plcArmed ? "Armed — auto-print on PLC signal" : "Disarmed"}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={plcArmed ? "default" : "outline"}
+              onClick={() => setPlcArmed((v) => !v)}
+            >
+              {plcArmed ? "Disarm" : "Arm"}
+            </Button>
+            {!bridge.isElectron && bridge.mockPlcTrigger && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => bridge.mockPlcTrigger?.(partRef.trim().toUpperCase())}
+                disabled={!partRef.trim()}
+              >
+                Simulate PLC
+              </Button>
+            )}
           </div>
         </div>
 
@@ -75,6 +123,11 @@ export function LabelGenerator({ partRef, onPartRefChange }: Props) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">
                 {last.printed ? "Label printed" : "Label staged"}
+                {last.trigger === "plc" && (
+                  <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                    via PLC
+                  </span>
+                )}
               </p>
               <p className="text-xs font-mono text-muted-foreground truncate">{last.partId}</p>
               {last.error && <p className="text-xs text-muted-foreground mt-1">{last.error}</p>}

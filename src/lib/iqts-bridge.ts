@@ -1,6 +1,8 @@
 // IQTS Bridge — uniform API for both Electron (real hardware) and browser preview (mock).
 // In packaged app, electron/preload.cjs exposes window.iqts with the real implementations.
 
+import { formatPartId } from "./iqts-partid";
+
 export type QualityStatus = "Conforme" | "Non-Conforme" | "Pending";
 
 export interface PartRecord {
@@ -40,8 +42,12 @@ export interface IQTSApi {
   setConfig(patch: Partial<SystemConfig>): Promise<SystemConfig>;
   // demo only — simulates a fresh camera capture in mock mode
   mockCameraCapture?(status: QualityStatus): Promise<void>;
+  // demo only — simulates a Siemens PLC print trigger in mock mode
+  mockPlcTrigger?(partRef: string): Promise<void>;
   onPendingChange(cb: (pending: { filename: string; createdAt: number; status: QualityStatus } | null) => void): () => void;
   getPending(): Promise<{ filename: string; createdAt: number; status: QualityStatus } | null>;
+  // PLC trigger event — fires when Siemens PLC requests a label print
+  onPlcTrigger(cb: (partRef: string) => void): () => void;
 }
 
 declare global {
@@ -95,6 +101,7 @@ function saveMock(state: MockState) {
 
 type PendingPayload = { filename: string; createdAt: number; status: QualityStatus } | null;
 const listeners = new Set<(p: PendingPayload) => void>();
+const plcListeners = new Set<(partRef: string) => void>();
 
 function emit(state: MockState) {
   const latest = state.pending.length ? state.pending[state.pending.length - 1] : null;
@@ -148,8 +155,7 @@ function makeFakeCapture(status: QualityStatus): string {
 const mockApi: IQTSApi = {
   isElectron: false,
   async generateLabel(partRef: string) {
-    const ts = Math.floor(Date.now() / 1000);
-    const partId = `${partRef}_${ts}`;
+    const partId = formatPartId(partRef);
     const zpl =
       `^XA\n^FO50,50^A0N,40,40^FD${partRef}^FS\n` +
       `^FO50,110^BQN,2,6^FDLA,${partId}^FS\n` +
@@ -167,7 +173,7 @@ const mockApi: IQTSApi = {
     if (!idx) return null;
     const img = idx.p;
     state.pending.splice(idx.i, 1);
-    const partRef = partId.split("_")[0] ?? partId;
+    const partRef = partId.split("T")[0] ?? partId;
     const record: PartRecord = {
       id: state.nextId++,
       partId,
@@ -219,6 +225,15 @@ const mockApi: IQTSApi = {
     });
     saveMock(state);
     emit(state);
+  },
+  async mockPlcTrigger(partRef: string) {
+    plcListeners.forEach((cb) => cb(partRef));
+  },
+  onPlcTrigger(cb) {
+    plcListeners.add(cb);
+    return () => {
+      plcListeners.delete(cb);
+    };
   },
   onPendingChange(cb) {
     listeners.add(cb);
