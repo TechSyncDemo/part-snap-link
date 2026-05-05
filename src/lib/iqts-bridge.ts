@@ -226,6 +226,15 @@ const mockApi: IQTSApi = {
     saveMock(state);
     emit(state);
   },
+  async mockPlcTrigger(partRef: string) {
+    plcListeners.forEach((cb) => cb(partRef));
+  },
+  onPlcTrigger(cb) {
+    plcListeners.add(cb);
+    return () => {
+      plcListeners.delete(cb);
+    };
+  },
   onPendingChange(cb) {
     listeners.add(cb);
     return () => {
