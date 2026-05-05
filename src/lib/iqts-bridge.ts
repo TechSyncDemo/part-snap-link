@@ -168,7 +168,7 @@ const mockApi: IQTSApi = {
     if (!idx) return null;
     const img = idx.p;
     state.pending.splice(idx.i, 1);
-    const partRef = partId.split("_")[0] ?? partId;
+    const partRef = partId.split("T")[0] ?? partId;
     const record: PartRecord = {
       id: state.nextId++,
       partId,
