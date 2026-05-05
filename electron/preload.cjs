@@ -2,9 +2,15 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 const listeners = new Set();
+const plcListeners = new Set();
 ipcRenderer.on("iqts:pending", (_e, payload) => {
   listeners.forEach((cb) => {
     try { cb(payload); } catch (err) { console.error(err); }
+  });
+});
+ipcRenderer.on("iqts:plcTrigger", (_e, partRef) => {
+  plcListeners.forEach((cb) => {
+    try { cb(partRef); } catch (err) { console.error(err); }
   });
 });
 
