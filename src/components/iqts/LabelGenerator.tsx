@@ -123,6 +123,11 @@ export function LabelGenerator({ partRef, onPartRefChange }: Props) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">
                 {last.printed ? "Label printed" : "Label staged"}
+                {last.trigger === "plc" && (
+                  <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                    via PLC
+                  </span>
+                )}
               </p>
               <p className="text-xs font-mono text-muted-foreground truncate">{last.partId}</p>
               {last.error && <p className="text-xs text-muted-foreground mt-1">{last.error}</p>}
