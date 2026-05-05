@@ -1,6 +1,8 @@
 // IQTS Bridge — uniform API for both Electron (real hardware) and browser preview (mock).
 // In packaged app, electron/preload.cjs exposes window.iqts with the real implementations.
 
+import { formatPartId } from "./iqts-partid";
+
 export type QualityStatus = "Conforme" | "Non-Conforme" | "Pending";
 
 export interface PartRecord {
