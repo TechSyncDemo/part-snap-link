@@ -53,38 +53,16 @@ bun run dev   # vite dev server on :8080 — preview / mock mode
 ## Run as desktop app (with hardware)
 
 ```bash
-# 1. Install all deps (electron + electron-builder are devDependencies,
-#    better-sqlite3 + chokidar are optionalDependencies)
-npm install
+# 1. Install Electron + native deps
+bun add -d electron @electron/packager
+bun add better-sqlite3 chokidar
 
-# 2. Build the renderer + launch in dev
-npm run build
-npm run electron
+# 2. Build the renderer
+bunx vite build
+
+# 3. Launch
+bunx electron .
 ```
-
-## Build a Windows installer (.msi / .exe)
-
-`electron-builder` is configured in `package.json` under the `build` block.
-Run these on a **Windows** machine so `better-sqlite3` compiles for the target:
-
-```bash
-npm install                 # postinstall rebuilds native modules for Electron
-npm run dist:msi            # → release/IQTS-Setup-<version>.msi   (recommended for managed IPCs)
-npm run dist:win            # → release/IQTS-Setup-<version>.exe   (NSIS installer)
-npm run dist:portable       # → release/IQTS-Setup-<version>.exe   (no install)
-npm run electron:build      # builds every target in package.json
-```
-
-### Installer features
-
-- Per-machine install under `C:\Program Files\IQTS\` (requires admin).
-- Desktop + Start Menu shortcuts.
-- Adds Windows Firewall rules on install (and removes on uninstall):
-  - TCP **9100** outbound — Zebra printer
-  - TCP **9500** inbound — Siemens PLC trigger listener
-- Bundled `resources/firewall-rules.bat` to re-apply rules manually.
-- Drop a 256×256 `build/icon.ico` before packaging — see `build/README.md`.
-
 
 The first launch creates `~/.config/IQTS/iqts/`:
 - `iqts.sqlite` — archive
