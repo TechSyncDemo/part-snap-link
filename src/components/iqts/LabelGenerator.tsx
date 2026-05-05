@@ -65,13 +65,45 @@ export function LabelGenerator({ partRef, onPartRefChange }: Props) {
             />
             <Button
               size="lg"
-              onClick={generate}
+              onClick={() => void generate("manual")}
               disabled={busy || !partRef.trim()}
               className="px-6 text-base font-semibold"
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
               <span className="ml-2">Generate Label</span>
             </Button>
+          </div>
+        </div>
+
+        {/* PLC trigger row */}
+        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Radio className={`h-4 w-4 ${plcArmed ? "text-success" : "text-muted-foreground"}`} />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider">Siemens PLC trigger</p>
+              <p className="text-[11px] text-muted-foreground">
+                {plcArmed ? "Armed — auto-print on PLC signal" : "Disarmed"}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={plcArmed ? "default" : "outline"}
+              onClick={() => setPlcArmed((v) => !v)}
+            >
+              {plcArmed ? "Disarm" : "Arm"}
+            </Button>
+            {!bridge.isElectron && bridge.mockPlcTrigger && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => bridge.mockPlcTrigger?.(partRef.trim().toUpperCase())}
+                disabled={!partRef.trim()}
+              >
+                Simulate PLC
+              </Button>
+            )}
           </div>
         </div>
 
