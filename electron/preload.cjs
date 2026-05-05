@@ -27,4 +27,8 @@ contextBridge.exposeInMainWorld("iqts", {
     listeners.add(cb);
     return () => listeners.delete(cb);
   },
+  onPlcTrigger: (cb) => {
+    plcListeners.add(cb);
+    return () => plcListeners.delete(cb);
+  },
 });
