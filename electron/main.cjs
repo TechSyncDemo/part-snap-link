@@ -139,6 +139,17 @@ function sendZpl(host, port, zpl) {
   });
 }
 
+function formatPartId(partRef, date = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const dd = pad(date.getDate());
+  const mm = pad(date.getMonth() + 1);
+  const yyyy = String(date.getFullYear());
+  const hh = pad(date.getHours());
+  const mi = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  return `${partRef}T${dd}${mm}${yyyy}_${hh}${mi}${ss}`;
+}
+
 function buildZpl(partRef, partId) {
   const ts = new Date().toLocaleString();
   return [
@@ -149,6 +160,56 @@ function buildZpl(partRef, partId) {
     `^FO40,330^A0N,22,22^FD${ts}^FS`,
     "^XZ",
   ].join("\n");
+}
+
+async function generateAndPrintLabel(partRef) {
+  const partId = formatPartId(partRef);
+  const zpl = buildZpl(partRef, partId);
+  const { ok, err } = await sendZpl(config.printer.host, config.printer.port, zpl);
+  return { partId, zpl, printed: ok, error: ok ? undefined : err };
+}
+
+// ---------- Siemens PLC trigger listener ----------
+// Raw TCP server. PLC opens a socket and writes either:
+//   - plain text:  "PR-12345\n"
+//   - JSON line:   '{"partRef":"PR-12345"}\n'
+// On receipt the renderer is notified ("iqts:plcTrigger") and a label is auto-printed.
+let plcServer = null;
+function startPlcServer() {
+  if (!config.plc?.enabled) return;
+  try {
+    plcServer = net.createServer((socket) => {
+      let buf = "";
+      socket.on("data", (chunk) => {
+        buf += chunk.toString("utf8");
+        let idx;
+        while ((idx = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, idx).trim();
+          buf = buf.slice(idx + 1);
+          if (!line) continue;
+          let partRef = line;
+          try {
+            const j = JSON.parse(line);
+            if (j && typeof j.partRef === "string") partRef = j.partRef;
+          } catch {}
+          partRef = String(partRef).trim().toUpperCase();
+          if (!partRef) continue;
+          console.log(`[IQTS] PLC trigger: ${partRef}`);
+          if (mainWindow) mainWindow.webContents.send("iqts:plcTrigger", partRef);
+          generateAndPrintLabel(partRef)
+            .then((r) => socket.write(`OK ${r.partId}\n`))
+            .catch((e) => socket.write(`ERR ${e.message}\n`));
+        }
+      });
+      socket.on("error", (e) => console.warn("[IQTS] PLC socket error:", e.message));
+    });
+    plcServer.on("error", (e) => console.warn("[IQTS] PLC server error:", e.message));
+    plcServer.listen(config.plc.listenPort, config.plc.listenHost, () => {
+      console.log(`[IQTS] PLC listener on ${config.plc.listenHost}:${config.plc.listenPort}`);
+    });
+  } catch (e) {
+    console.warn("[IQTS] PLC listener failed to start:", e.message);
+  }
 }
 
 // ---------- IPC handlers ----------
@@ -166,11 +227,7 @@ ipcMain.handle("iqts:setConfig", (_e, patch) => {
 });
 
 ipcMain.handle("iqts:generateLabel", async (_e, partRef) => {
-  const ts = Math.floor(Date.now() / 1000);
-  const partId = `${partRef}_${ts}`;
-  const zpl = buildZpl(partRef, partId);
-  const { ok, err } = await sendZpl(config.printer.host, config.printer.port, zpl);
-  return { partId, zpl, printed: ok, error: ok ? undefined : err };
+  return generateAndPrintLabel(String(partRef).trim().toUpperCase());
 });
 
 ipcMain.handle("iqts:getPending", () => {
