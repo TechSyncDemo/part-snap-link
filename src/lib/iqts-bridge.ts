@@ -42,8 +42,12 @@ export interface IQTSApi {
   setConfig(patch: Partial<SystemConfig>): Promise<SystemConfig>;
   // demo only — simulates a fresh camera capture in mock mode
   mockCameraCapture?(status: QualityStatus): Promise<void>;
+  // demo only — simulates a Siemens PLC print trigger in mock mode
+  mockPlcTrigger?(partRef: string): Promise<void>;
   onPendingChange(cb: (pending: { filename: string; createdAt: number; status: QualityStatus } | null) => void): () => void;
   getPending(): Promise<{ filename: string; createdAt: number; status: QualityStatus } | null>;
+  // PLC trigger event — fires when Siemens PLC requests a label print
+  onPlcTrigger(cb: (partRef: string) => void): () => void;
 }
 
 declare global {
