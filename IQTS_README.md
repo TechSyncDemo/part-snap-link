@@ -38,7 +38,7 @@ The renderer is a TanStack Start app; the desktop wrapper is Electron.
 
 ## Workflow
 
-1. **Phase A — Identification.** Operator enters Part Reference and clicks *Generate Label*. The app sends ZPL over TCP/9100 to the Zebra printer; label encodes `PartRef_Timestamp`.
+1. **Phase A — Identification.** The Siemens PLC sends a TCP message to the IPC on port `9500` containing the part reference (plain text `PR-12345\n` or JSON `{"partRef":"PR-12345"}\n`). The app auto-generates a Part ID in the format `<Ref>T<ddmmyyyy>_<hhmmss>` (e.g. `PR-12345T05052026_143055`) and prints the QR label via Zebra TCP/9100. The operator can also trigger printing manually from the UI.
 2. **Phase B — Capture.** PLC triggers IFM camera. Camera writes JPEG to `watchFolder` over FTP/SMB. The app's chokidar watcher detects the file. Quality status is parsed from the filename suffix (`_OK_*` / `_NOK_*`).
 3. **Phase C — Pairing.** Operator scans the label. The Enter-suffixed HID scan lands in the *Scan Input* field. The app picks the most recent file in the buffer (within the configured Δt), moves it to `processedFolder` renamed to `<PartId>.jpg`, and inserts a SQLite record.
 4. **Phase D — Retrieval.** Supervisor scans/searches in the *Quality Archive* panel; image and metadata appear instantly.
