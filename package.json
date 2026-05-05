@@ -8,11 +8,54 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "package:win": "electron-packager . IQTS --platform=win32 --arch=x64 --out=release --overwrite --prune=true --ignore=\"^/eslint\\.config\\.js$\"",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "electron": "electron .",
+    "package:win": "electron-packager . IQTS --platform=win32 --arch=x64 --out=release --overwrite --prune=true --ignore=\"^/eslint\\.config\\.js$\"",
+    "dist:msi": "vite build && electron-builder --win msi --x64",
+    "dist:nsis": "vite build && electron-builder --win nsis --x64",
+    "dist:portable": "vite build && electron-builder --win portable --x64",
+    "electron:build": "vite build && electron-builder"
+  },
+  "build": {
+    "appId": "com.iqts.workstation",
+    "productName": "IQTS",
+    "directories": { "output": "release", "buildResources": "build" },
+    "files": ["dist/**/*", "electron/**/*", "package.json"],
+    "extraMetadata": { "main": "electron/main.cjs" },
+    "asar": true,
+    "asarUnpack": ["**/node_modules/better-sqlite3/**/*"],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "msi", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "IQTS",
+      "include": "build/installer.nsh"
+    },
+    "msi": {
+      "oneClick": false,
+      "perMachine": true,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "IQTS"
+    },
+    "extraResources": [
+      { "from": "build/firewall-rules.bat", "to": "firewall-rules.bat" }
+    ]
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
