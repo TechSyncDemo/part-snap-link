@@ -150,8 +150,7 @@ function makeFakeCapture(status: QualityStatus): string {
 const mockApi: IQTSApi = {
   isElectron: false,
   async generateLabel(partRef: string) {
-    const ts = Math.floor(Date.now() / 1000);
-    const partId = `${partRef}_${ts}`;
+    const partId = formatPartId(partRef);
     const zpl =
       `^XA\n^FO50,50^A0N,40,40^FD${partRef}^FS\n` +
       `^FO50,110^BQN,2,6^FDLA,${partId}^FS\n` +
