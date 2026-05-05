@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Printer, Tag, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Printer, Tag, Loader2, CheckCircle2, AlertTriangle, Radio } from "lucide-react";
 import { getBridge } from "@/lib/iqts-bridge";
 import { Button } from "@/components/ui/button";
 
@@ -12,18 +12,34 @@ interface Props {
 
 export function LabelGenerator({ partRef, onPartRefChange }: Props) {
   const [busy, setBusy] = useState(false);
-  const [last, setLast] = useState<{ partId: string; printed: boolean; error?: string } | null>(null);
+  const [last, setLast] = useState<{ partId: string; printed: boolean; error?: string; trigger?: "manual" | "plc" } | null>(null);
+  const [plcArmed, setPlcArmed] = useState(true);
 
-  async function generate() {
-    if (!partRef.trim()) return;
+  async function generate(trigger: "manual" | "plc" = "manual", refOverride?: string) {
+    const ref = (refOverride ?? partRef).trim().toUpperCase();
+    if (!ref) return;
     setBusy(true);
     try {
-      const res = await bridge.generateLabel(partRef.trim().toUpperCase());
-      setLast({ partId: res.partId, printed: res.printed, error: res.error });
+      const res = await bridge.generateLabel(ref);
+      setLast({ partId: res.partId, printed: res.printed, error: res.error, trigger });
     } finally {
       setBusy(false);
     }
   }
+
+  // Listen for Siemens PLC print trigger
+  useEffect(() => {
+    const off = bridge.onPlcTrigger((triggeredRef) => {
+      if (!plcArmed) return;
+      const ref = (triggeredRef || partRef).trim().toUpperCase();
+      if (ref) {
+        if (triggeredRef) onPartRefChange(ref);
+        void generate("plc", ref);
+      }
+    });
+    return off;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plcArmed, partRef]);
 
   return (
     <div className="rounded-xl border bg-card shadow-industrial overflow-hidden">
