@@ -1,0 +1,71 @@
+name: Build Windows Installer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+        env:
+          # Ensure better-sqlite3 builds against the bundled Electron ABI
+          npm_config_build_from_source: "true"
+
+      - name: Rebuild native modules for Electron
+        run: npx electron-builder install-app-deps
+
+      - name: Build Vite frontend
+        run: npx vite build
+
+      - name: Package Windows installers (NSIS + MSI + Portable)
+        run: npx electron-builder --win nsis msi portable --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload NSIS installer (.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IQTS-Windows-Setup-exe
+          path: dist-electron/*Setup*.exe
+          if-no-files-found: warn
+
+      - name: Upload MSI installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: IQTS-Windows-MSI
+          path: dist-electron/*.msi
+          if-no-files-found: warn
+
+      - name: Upload Portable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: IQTS-Windows-Portable
+          path: dist-electron/*Portable*.exe
+          if-no-files-found: warn
+
+      - name: Upload all build outputs (fallback)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IQTS-Windows-All
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.msi
+            dist-electron/*.blockmap
+            dist-electron/latest.yml
+          if-no-files-found: error
