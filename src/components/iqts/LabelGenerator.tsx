@@ -43,40 +43,39 @@ export function LabelGenerator({ partRef, onPartRefChange }: Props) {
 
   return (
     <div className="rounded-xl border bg-card shadow-industrial overflow-hidden">
-      <div className="px-5 py-3 border-b bg-muted/40 flex items-center justify-between">
+      <div className="px-3 py-2 border-b bg-muted/40 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Tag className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider">Label Generation</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider">Label Generation</h3>
         </div>
-        <span className="text-xs text-muted-foreground font-mono">Zebra · TCP/9100</span>
+        <span className="text-[10px] text-muted-foreground font-mono">Zebra · TCP/9100</span>
       </div>
-      <div className="p-5 space-y-4">
+      <div className="p-3 space-y-3">
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Part Reference
           </label>
-          <div className="mt-2 flex flex-col sm:flex-row gap-2">
+          <div className="mt-1 flex flex-col sm:flex-row gap-2">
             <input
               value={partRef}
               onChange={(e) => onPartRefChange(e.target.value.toUpperCase())}
               placeholder="e.g. PR-12345"
-              className="flex-1 min-w-0 rounded-lg border-2 border-input bg-background px-4 py-3 text-lg font-mono font-bold uppercase tracking-wider focus:border-primary focus:outline-none focus:ring-4 focus:ring-ring/20"
+              className="flex-1 min-w-0 rounded-lg border-2 border-input bg-background px-3 py-2 text-base font-mono font-bold uppercase tracking-wider focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20"
               maxLength={32}
             />
             <Button
-              size="lg"
               onClick={() => void generate("manual")}
               disabled={busy || !partRef.trim()}
-              className="px-6 text-base font-semibold w-full sm:w-auto"
+              className="px-4 font-semibold w-full sm:w-auto"
             >
-              {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
               <span className="ml-2">Generate Label</span>
             </Button>
           </div>
         </div>
 
         {/* PLC trigger row */}
-        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-2.5 py-1.5">
           <div className="flex items-center gap-2">
             <Radio className={`h-4 w-4 ${plcArmed ? "text-success" : "text-muted-foreground"}`} />
             <div>
