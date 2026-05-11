@@ -80,53 +80,53 @@ export function ScanCapture({ partRef, onScanned, lastRecord }: Props) {
   const ageSec = pending ? Math.max(0, Math.floor((Date.now() - pending.createdAt) / 1000)) : 0;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       {/* Pending capture */}
       <div className="rounded-xl border bg-card shadow-industrial overflow-hidden">
-        <div className="px-5 py-3 border-b bg-muted/40 flex items-center justify-between">
+        <div className="px-3 py-2 border-b bg-muted/40 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Camera className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider">Camera Buffer</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider">Camera Buffer</h3>
           </div>
           {pending ? (
-            <span className="text-xs font-mono text-muted-foreground">age {ageSec}s</span>
+            <span className="text-[10px] font-mono text-muted-foreground">age {ageSec}s</span>
           ) : (
-            <span className="text-xs text-muted-foreground">idle</span>
+            <span className="text-[10px] text-muted-foreground">idle</span>
           )}
         </div>
-        <div className="p-5">
+        <div className="p-3">
           {pending ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <code className="text-xs font-mono text-muted-foreground truncate">{pending.filename}</code>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <code className="text-[11px] font-mono text-muted-foreground truncate">{pending.filename}</code>
                 <StatusPill status={pending.status} />
               </div>
-              <div className="rounded-lg border bg-muted/30 aspect-[4/3] flex items-center justify-center overflow-hidden">
+              <div className="rounded-lg border bg-muted/30 aspect-[16/7] flex items-center justify-center overflow-hidden">
                 <div className="text-center">
-                  <Camera className="h-10 w-10 mx-auto mb-2 text-muted-foreground/60" />
-                  <p className="text-sm text-muted-foreground">Image awaiting scan</p>
-                  <p className="text-xs text-muted-foreground mt-1 font-mono">{fmtTime(pending.createdAt)}</p>
+                  <Camera className="h-7 w-7 mx-auto mb-1 text-muted-foreground/60" />
+                  <p className="text-xs text-muted-foreground">Image awaiting scan</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">{fmtTime(pending.createdAt)}</p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="rounded-lg border border-dashed aspect-[4/3] flex items-center justify-center">
+            <div className="rounded-lg border border-dashed aspect-[16/7] flex items-center justify-center">
               <div className="text-center">
-                <Camera className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">Waiting for IFM camera capture…</p>
+                <Camera className="h-7 w-7 mx-auto mb-1 text-muted-foreground/40" />
+                <p className="text-xs text-muted-foreground">Waiting for IFM camera capture…</p>
               </div>
             </div>
           )}
 
           {!bridge.isElectron && (
-            <div className="mt-4 pt-4 border-t">
-              <p className="text-xs text-muted-foreground mb-2 font-medium">Preview mode — simulate camera</p>
+            <div className="mt-2 pt-2 border-t">
+              <p className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wider">Preview — simulate camera</p>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => mockCapture("Conforme")}>
+                <Button size="sm" variant="outline" className="flex-1 h-7" onClick={() => mockCapture("Conforme")}>
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1 text-success" />
                   Pass
                 </Button>
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => mockCapture("Non-Conforme")}>
+                <Button size="sm" variant="outline" className="flex-1 h-7" onClick={() => mockCapture("Non-Conforme")}>
                   <XCircle className="h-3.5 w-3.5 mr-1 text-destructive" />
                   Fail
                 </Button>
@@ -138,21 +138,21 @@ export function ScanCapture({ partRef, onScanned, lastRecord }: Props) {
 
       {/* Scanner */}
       <div className="rounded-xl border bg-card shadow-industrial overflow-hidden">
-        <div className="px-5 py-3 border-b bg-muted/40 flex items-center justify-between">
+        <div className="px-3 py-2 border-b bg-muted/40 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ScanLine className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider">Scanner Input</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider">Scanner Input</h3>
           </div>
-          <span className="text-xs text-muted-foreground">HID keyboard wedge</span>
+          <span className="text-[10px] text-muted-foreground">HID keyboard wedge</span>
         </div>
-        <div className="p-5 space-y-4">
+        <div className="p-3 space-y-2">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (scanInput.trim()) void handleScan(scanInput.trim());
             }}
           >
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Scan or type Part ID
             </label>
             <input
@@ -160,34 +160,34 @@ export function ScanCapture({ partRef, onScanned, lastRecord }: Props) {
               value={scanInput}
               onChange={(e) => setScanInput(e.target.value)}
               placeholder={partRef ? `${partRef}_…` : "Awaiting scan…"}
-              className="mt-2 w-full rounded-lg border-2 border-input bg-background px-4 py-4 text-2xl font-mono font-bold tracking-wider focus:border-primary focus:outline-none focus:ring-4 focus:ring-ring/20"
+              className="mt-1 w-full rounded-lg border-2 border-input bg-background px-3 py-2 text-lg font-mono font-bold tracking-wider focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20"
               autoFocus
               disabled={busy}
             />
           </form>
 
           {error && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 flex gap-2 text-sm">
-              <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 flex gap-2 text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0 mt-0.5" />
               <p className="text-destructive">{error}</p>
             </div>
           )}
 
           {lastRecord && (
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <div className="rounded-lg border bg-muted/30 p-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                 Last association
               </p>
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2">
                 {lastRecord.imageDataUrl && (
                   <img
                     src={lastRecord.imageDataUrl}
                     alt={lastRecord.partId}
-                    className="w-20 h-16 object-cover rounded border"
+                    className="w-16 h-12 object-cover rounded border"
                   />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-mono text-muted-foreground truncate">{lastRecord.partId}</p>
+                  <p className="text-[11px] font-mono text-muted-foreground truncate">{lastRecord.partId}</p>
                   <div className="mt-1">
                     <StatusPill status={lastRecord.status} />
                   </div>
@@ -196,9 +196,9 @@ export function ScanCapture({ partRef, onScanned, lastRecord }: Props) {
             </div>
           )}
 
-          <div className="flex items-start gap-2 text-xs text-muted-foreground border-t pt-3">
-            <Printer className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-            <p>Scanner Enter-suffix triggers association with the latest image in the buffer.</p>
+          <div className="flex items-start gap-2 text-[10px] text-muted-foreground border-t pt-2">
+            <Printer className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <p>Scanner Enter-suffix associates with the latest image in buffer.</p>
           </div>
         </div>
       </div>
