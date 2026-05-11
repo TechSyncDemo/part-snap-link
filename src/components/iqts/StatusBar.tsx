@@ -12,7 +12,7 @@ export function StatusBar({ station, operator, recordsToday, passRate }: Props) 
   const electron = isElectronEnv();
   return (
     <header className="border-b bg-surface/80 backdrop-blur sticky top-0 z-10">
-      <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center gap-6">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-industrial">
             <Factory className="h-5 w-5" />
@@ -36,9 +36,9 @@ export function StatusBar({ station, operator, recordsToday, passRate }: Props) 
           </div>
         </div>
 
-        <div className="flex-1" />
+        <div className="hidden sm:block flex-1" />
 
-        <div className="flex items-center gap-5 text-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm w-full sm:w-auto">
           <div className="text-right">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Records today</p>
             <p className="font-mono font-bold text-base leading-tight">{recordsToday}</p>
