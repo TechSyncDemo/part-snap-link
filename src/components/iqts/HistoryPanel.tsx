@@ -67,15 +67,15 @@ export function HistoryPanel({ refreshKey }: Props) {
                   <li key={r.id}>
                     <button
                       onClick={() => setSelected(r)}
-                      className={`w-full text-left px-4 py-3 transition-colors hover:bg-accent/50 ${
+                      className={`w-full text-left px-3 py-2 transition-colors hover:bg-accent/50 ${
                         isSel ? "bg-accent" : ""
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Icon className={`h-4 w-4 flex-shrink-0 ${tone}`} />
+                      <div className="flex items-center gap-2">
+                        <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${tone}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-mono font-semibold truncate">{r.partId}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-mono font-semibold truncate">{r.partId}</p>
+                          <p className="text-[10px] text-muted-foreground">
                             {new Date(r.capturedAt).toLocaleString()} · {r.station}
                           </p>
                         </div>
