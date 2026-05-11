@@ -31,32 +31,20 @@
     "win": {
       "target": [
         { "target": "nsis", "arch": ["x64"] },
-        { "target": "msi", "arch": ["x64"] },
         { "target": "portable", "arch": ["x64"] }
       ],
       "artifactName": "${productName}-Setup-${version}.${ext}",
-      "requestedExecutionLevel": "requireAdministrator"
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": true,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "IQTS",
-      "include": "build/installer.nsh"
-    },
-    "msi": {
-      "oneClick": false,
-      "perMachine": true,
-      "runAfterFinish": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "IQTS"
-    },
-    "extraResources": [
-      { "from": "build/firewall-rules.bat", "to": "firewall-rules.bat" }
-    ]
+      "runAfterFinish": true
+    }
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
