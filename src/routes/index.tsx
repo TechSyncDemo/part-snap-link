@@ -60,7 +60,7 @@ function IndexPage() {
         passRate={stats.rate}
       />
 
-      <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+      <main className="max-w-[1600px] mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
         {/* Phase A — Identification */}
         <section>
           <SectionHeader phase="A" title="Identification" subtitle="Operator generates a QR label and applies it to the part." />
