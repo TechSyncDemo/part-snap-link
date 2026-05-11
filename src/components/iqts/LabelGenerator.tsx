@@ -55,19 +55,19 @@ export function LabelGenerator({ partRef, onPartRefChange }: Props) {
           <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Part Reference
           </label>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-col sm:flex-row gap-2">
             <input
               value={partRef}
               onChange={(e) => onPartRefChange(e.target.value.toUpperCase())}
               placeholder="e.g. PR-12345"
-              className="flex-1 rounded-lg border-2 border-input bg-background px-4 py-3 text-lg font-mono font-bold uppercase tracking-wider focus:border-primary focus:outline-none focus:ring-4 focus:ring-ring/20"
+              className="flex-1 min-w-0 rounded-lg border-2 border-input bg-background px-4 py-3 text-lg font-mono font-bold uppercase tracking-wider focus:border-primary focus:outline-none focus:ring-4 focus:ring-ring/20"
               maxLength={32}
             />
             <Button
               size="lg"
               onClick={() => void generate("manual")}
               disabled={busy || !partRef.trim()}
-              className="px-6 text-base font-semibold"
+              className="px-6 text-base font-semibold w-full sm:w-auto"
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
               <span className="ml-2">Generate Label</span>
