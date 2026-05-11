@@ -88,16 +88,16 @@ export function HistoryPanel({ refreshKey }: Props) {
           )}
         </div>
 
-        <div className="p-5 bg-muted/20">
+        <div className="p-3 bg-muted/20 max-h-[260px] overflow-y-auto">
           {selected ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Part ID</p>
-                  <p className="font-mono font-bold text-base">{selected.partId}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Part ID</p>
+                  <p className="font-mono font-bold text-sm">{selected.partId}</p>
                 </div>
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wider ${
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                     selected.status === "Conforme"
                       ? "status-pill-pass"
                       : selected.status === "Non-Conforme"
@@ -110,12 +110,12 @@ export function HistoryPanel({ refreshKey }: Props) {
               </div>
               <div className="rounded-lg border bg-background overflow-hidden">
                 {selected.imageDataUrl ? (
-                  <img src={selected.imageDataUrl} alt={selected.partId} className="w-full aspect-[4/3] object-cover" />
+                  <img src={selected.imageDataUrl} alt={selected.partId} className="w-full aspect-[16/8] object-cover" />
                 ) : (
-                  <div className="aspect-[4/3] flex items-center justify-center text-muted-foreground">
+                  <div className="aspect-[16/8] flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
-                      <ImageIcon className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                      <p className="text-xs font-mono">{selected.imagePath}</p>
+                      <ImageIcon className="h-7 w-7 mx-auto mb-1 opacity-40" />
+                      <p className="text-[10px] font-mono">{selected.imagePath}</p>
                     </div>
                   </div>
                 )}
