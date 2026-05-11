@@ -29,28 +29,28 @@ export function HistoryPanel({ refreshKey }: Props) {
 
   return (
     <div className="rounded-xl border bg-card shadow-industrial overflow-hidden">
-      <div className="px-5 py-3 border-b bg-muted/40 flex items-center justify-between">
+      <div className="px-3 py-2 border-b bg-muted/40 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Database className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider">Quality Archive</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider">Quality Archive</h3>
         </div>
-        <span className="text-xs text-muted-foreground font-mono">SQLite · local</span>
+        <span className="text-[10px] text-muted-foreground font-mono">SQLite · local</span>
       </div>
 
-      <div className="p-4 border-b">
+      <div className="p-2 border-b">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Scan or type Part ID, Reference, or Status…"
-            className="w-full rounded-lg border bg-background pl-10 pr-4 py-3 font-mono text-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-ring/20"
+            className="w-full rounded-lg border bg-background pl-8 pr-3 py-1.5 font-mono text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] divide-y md:divide-y-0 md:divide-x">
-        <div className="max-h-[420px] overflow-y-auto">
+        <div className="max-h-[260px] overflow-y-auto">
           {records.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               <Database className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -67,15 +67,15 @@ export function HistoryPanel({ refreshKey }: Props) {
                   <li key={r.id}>
                     <button
                       onClick={() => setSelected(r)}
-                      className={`w-full text-left px-4 py-3 transition-colors hover:bg-accent/50 ${
+                      className={`w-full text-left px-3 py-2 transition-colors hover:bg-accent/50 ${
                         isSel ? "bg-accent" : ""
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Icon className={`h-4 w-4 flex-shrink-0 ${tone}`} />
+                      <div className="flex items-center gap-2">
+                        <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${tone}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-mono font-semibold truncate">{r.partId}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-mono font-semibold truncate">{r.partId}</p>
+                          <p className="text-[10px] text-muted-foreground">
                             {new Date(r.capturedAt).toLocaleString()} · {r.station}
                           </p>
                         </div>
@@ -88,16 +88,16 @@ export function HistoryPanel({ refreshKey }: Props) {
           )}
         </div>
 
-        <div className="p-5 bg-muted/20">
+        <div className="p-3 bg-muted/20 max-h-[260px] overflow-y-auto">
           {selected ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Part ID</p>
-                  <p className="font-mono font-bold text-base">{selected.partId}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Part ID</p>
+                  <p className="font-mono font-bold text-sm">{selected.partId}</p>
                 </div>
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wider ${
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                     selected.status === "Conforme"
                       ? "status-pill-pass"
                       : selected.status === "Non-Conforme"
@@ -110,12 +110,12 @@ export function HistoryPanel({ refreshKey }: Props) {
               </div>
               <div className="rounded-lg border bg-background overflow-hidden">
                 {selected.imageDataUrl ? (
-                  <img src={selected.imageDataUrl} alt={selected.partId} className="w-full aspect-[4/3] object-cover" />
+                  <img src={selected.imageDataUrl} alt={selected.partId} className="w-full aspect-[16/8] object-cover" />
                 ) : (
-                  <div className="aspect-[4/3] flex items-center justify-center text-muted-foreground">
+                  <div className="aspect-[16/8] flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
-                      <ImageIcon className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                      <p className="text-xs font-mono">{selected.imagePath}</p>
+                      <ImageIcon className="h-7 w-7 mx-auto mb-1 opacity-40" />
+                      <p className="text-[10px] font-mono">{selected.imagePath}</p>
                     </div>
                   </div>
                 )}

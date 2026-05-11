@@ -52,7 +52,7 @@ function IndexPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background bg-grid">
+    <div className="h-screen flex flex-col bg-background bg-grid overflow-hidden">
       <StatusBar
         station={config?.station ?? "—"}
         operator={config?.operator ?? "—"}
@@ -60,51 +60,42 @@ function IndexPage() {
         passRate={stats.rate}
       />
 
-      <main className="max-w-[1600px] mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
-        {/* Phase A — Identification */}
-        <section>
-          <SectionHeader phase="A" title="Identification" subtitle="Operator generates a QR label and applies it to the part." />
-          <LabelGenerator partRef={partRef} onPartRefChange={setPartRef} />
-        </section>
+      <main className="flex-1 min-h-0 overflow-auto">
+        <div className="max-w-[1600px] mx-auto px-2 sm:px-4 py-2 sm:py-3 grid gap-3 grid-cols-1 xl:grid-cols-12 xl:auto-rows-min">
+          {/* Phase A — Identification */}
+          <section className="xl:col-span-5">
+            <SectionHeader phase="A" title="Identification" />
+            <LabelGenerator partRef={partRef} onPartRefChange={setPartRef} />
+          </section>
 
-        {/* Phase B + C — Inspection & Pairing */}
-        <section>
-          <SectionHeader
-            phase="B · C"
-            title="Inspection & Pairing"
-            subtitle="The IFM camera captures an image; the operator scans the QR to associate it with the latest snapshot."
-          />
-          <ScanCapture partRef={partRef} onScanned={handleScanned} lastRecord={lastRecord} />
-        </section>
+          {/* Phase B + C — Inspection & Pairing */}
+          <section className="xl:col-span-7">
+            <SectionHeader phase="B · C" title="Inspection & Pairing" />
+            <ScanCapture partRef={partRef} onScanned={handleScanned} lastRecord={lastRecord} />
+          </section>
 
-        {/* Phase D — Retrieval */}
-        <section>
-          <SectionHeader
-            phase="D"
-            title="Retrieval & Archive"
-            subtitle="Supervisors search the local SQLite archive by Part ID, reference, or status."
-          />
-          <HistoryPanel refreshKey={refreshKey} />
-        </section>
+          {/* Phase D — Retrieval */}
+          <section className="xl:col-span-12">
+            <SectionHeader phase="D" title="Retrieval & Archive" />
+            <HistoryPanel refreshKey={refreshKey} />
+          </section>
 
-        <footer className="text-center text-xs text-muted-foreground py-6 border-t">
-          IQTS · Local LAN Operation · Zero-Internet Dependency · {new Date().getFullYear()}
-        </footer>
+          <footer className="xl:col-span-12 text-center text-[11px] text-muted-foreground py-2 border-t">
+            IQTS · Local LAN · Zero-Internet · {new Date().getFullYear()}
+          </footer>
+        </div>
       </main>
     </div>
   );
 }
 
-function SectionHeader({ phase, title, subtitle }: { phase: string; title: string; subtitle: string }) {
+function SectionHeader({ phase, title }: { phase: string; title: string }) {
   return (
-    <div className="mb-3 flex items-end gap-3">
-      <span className="rounded-md bg-primary/10 text-primary px-2 py-1 text-xs font-mono font-bold">
+    <div className="mb-1.5 flex items-center gap-2">
+      <span className="rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-mono font-bold tracking-wider">
         PHASE {phase}
       </span>
-      <div>
-        <h2 className="font-display text-xl font-bold leading-tight">{title}</h2>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
-      </div>
+      <h2 className="font-display text-sm font-bold leading-tight uppercase tracking-wider">{title}</h2>
     </div>
   );
 }
