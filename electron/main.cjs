@@ -1,11 +1,7 @@
 // IQTS Electron main process
-// Runs on the Industrial PC. Provides:
-//   • SQLite archive (better-sqlite3)
-//   • Folder watcher for IFM camera output (chokidar)
-//   • Zebra TCP/9100 raw ZPL printing (net.Socket)
-//   • IPC handlers consumed by the React renderer through preload
-//
-// SECURITY: contextIsolation enabled, nodeIntegration disabled.
+// Flow: PLC trigger → generate Part ID → grab latest IFM image →
+//       rename it to <PartID>.<ext> → if Conforme print Zebra label →
+//       archive in SQLite → notify renderer.
 
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
@@ -13,7 +9,6 @@ const fs = require("fs");
 const net = require("net");
 const os = require("os");
 
-// Lazy-loaded native deps — provided as optional dependencies.
 let Database, chokidar;
 try { Database = require("better-sqlite3"); } catch (e) { console.warn("[IQTS] better-sqlite3 not available:", e.message); }
 try { chokidar = require("chokidar"); } catch (e) { console.warn("[IQTS] chokidar not available:", e.message); }
@@ -30,13 +25,14 @@ const defaultConfig = {
   watchFolder: path.join(dataDir, "camera_in"),
   processedFolder: path.join(dataDir, "processed"),
   printer: { host: "192.168.1.50", port: 9100 },
-  associationWindowMs: 5000,
   station: os.hostname() || "STATION-01",
   operator: "OP-001",
-  // Siemens PLC trigger listener — PLC sends a TCP message with the part reference
-  // to request label generation/printing. Format: plain text "<PART_REF>\n" or JSON
-  // {"partRef":"PR-12345"}.
   plc: { listenHost: "0.0.0.0", listenPort: 9500, enabled: true },
+  // After PLC trigger, wait up to this many ms for a fresh IFM image to arrive
+  // before falling back to the most recent existing file in the watch folder.
+  imageWaitMs: 2000,
+  // Only print Zebra label when image status is Conforme.
+  requireConformToPrint: true,
 };
 
 function loadConfig() {
@@ -77,9 +73,9 @@ if (Database) {
   `);
 }
 
-// ---------- Folder watcher ----------
-// Tracks pending captures (newest at end). Status parsed from filename (e.g. *_OK_*, *_NOK_*).
-const pending = []; // { fullPath, filename, createdAt, status }
+// ---------- IFM folder watcher ----------
+// Tracks recently-arrived images so we can match them quickly after a PLC trigger.
+const recent = []; // { fullPath, filename, mtime, status }
 
 function parseStatus(filename) {
   const lower = filename.toLowerCase();
@@ -89,16 +85,10 @@ function parseStatus(filename) {
 }
 
 let mainWindow = null;
-function emitPending() {
-  if (!mainWindow) return;
-  const latest = pending.length ? pending[pending.length - 1] : null;
-  mainWindow.webContents.send("iqts:pending", latest
-    ? { filename: latest.filename, createdAt: latest.createdAt, status: latest.status }
-    : null);
-}
+let lastNewFileResolver = null; // resolves with file info on next add
 
 function startWatcher() {
-  if (!chokidar) return;
+  if (!chokidar) return null;
   fs.mkdirSync(config.watchFolder, { recursive: true });
   const watcher = chokidar.watch(config.watchFolder, {
     ignoreInitial: true,
@@ -107,17 +97,54 @@ function startWatcher() {
   watcher.on("add", (fullPath) => {
     if (!/\.(jpe?g|png|bmp|tiff?)$/i.test(fullPath)) return;
     const filename = path.basename(fullPath);
-    pending.push({
-      fullPath,
-      filename,
-      createdAt: Date.now(),
-      status: parseStatus(filename),
-    });
-    emitPending();
+    let mtime = Date.now();
+    try { mtime = fs.statSync(fullPath).mtimeMs; } catch {}
+    const entry = { fullPath, filename, mtime, status: parseStatus(filename) };
+    recent.push(entry);
+    // keep buffer small
+    if (recent.length > 50) recent.splice(0, recent.length - 50);
+    if (lastNewFileResolver) {
+      const r = lastNewFileResolver;
+      lastNewFileResolver = null;
+      r(entry);
+    }
   });
   return watcher;
 }
 let watcher = startWatcher();
+
+function newestExistingImage() {
+  // First try buffered entries
+  if (recent.length) return recent[recent.length - 1];
+  // Fall back to scanning the watch folder
+  try {
+    const files = fs.readdirSync(config.watchFolder)
+      .filter((f) => /\.(jpe?g|png|bmp|tiff?)$/i.test(f))
+      .map((f) => {
+        const full = path.join(config.watchFolder, f);
+        let mtime = 0;
+        try { mtime = fs.statSync(full).mtimeMs; } catch {}
+        return { fullPath: full, filename: f, mtime, status: parseStatus(f) };
+      })
+      .sort((a, b) => b.mtime - a.mtime);
+    return files[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+function waitForNewImage(timeoutMs) {
+  return new Promise((resolve) => {
+    const t = setTimeout(() => {
+      lastNewFileResolver = null;
+      resolve(null);
+    }, timeoutMs);
+    lastNewFileResolver = (entry) => {
+      clearTimeout(t);
+      resolve(entry);
+    };
+  });
+}
 
 // ---------- Zebra printing ----------
 function sendZpl(host, port, zpl) {
@@ -162,18 +189,102 @@ function buildZpl(partRef, partId) {
   ].join("\n");
 }
 
-async function generateAndPrintLabel(partRef) {
-  const partId = formatPartId(partRef);
-  const zpl = buildZpl(partRef, partId);
-  const { ok, err } = await sendZpl(config.printer.host, config.printer.port, zpl);
-  return { partId, zpl, printed: ok, error: ok ? undefined : err };
+function readAsDataUrl(p) {
+  try {
+    const buf = fs.readFileSync(p);
+    const ext = (path.extname(p).slice(1) || "jpeg").toLowerCase();
+    const mime = ext === "jpg" ? "jpeg" : ext;
+    return `data:image/${mime};base64,${buf.toString("base64")}`;
+  } catch { return null; }
 }
 
-// ---------- Siemens PLC trigger listener ----------
-// Raw TCP server. PLC opens a socket and writes either:
-//   - plain text:  "PR-12345\n"
-//   - JSON line:   '{"partRef":"PR-12345"}\n'
-// On receipt the renderer is notified ("iqts:plcTrigger") and a label is auto-printed.
+// ---------- Core: process a part ----------
+// 1) generate partId  2) grab latest IFM image (waiting briefly for a fresh one)
+// 3) rename to <partId>.<ext> in processedFolder
+// 4) if Conforme → print  5) archive  6) emit event
+async function processPart(partRefRaw) {
+  const partRef = String(partRefRaw || "").trim().toUpperCase();
+  if (!partRef) {
+    return { ok: false, error: "Empty part reference" };
+  }
+  const partId = formatPartId(partRef);
+
+  // Wait briefly for a fresh image. If one doesn't arrive, fall back to the
+  // most recent file already on disk.
+  let img = await waitForNewImage(config.imageWaitMs);
+  if (!img) img = newestExistingImage();
+  if (!img) {
+    const payload = { ok: false, partId, partRef, error: "No image found in IFM folder" };
+    if (mainWindow) mainWindow.webContents.send("iqts:partProcessed", payload);
+    return payload;
+  }
+
+  // remove from in-memory buffer if present
+  const idx = recent.findIndex((r) => r.fullPath === img.fullPath);
+  if (idx >= 0) recent.splice(idx, 1);
+
+  // Rename / move
+  const ext = path.extname(img.filename) || ".jpg";
+  const destPath = path.join(config.processedFolder, `${partId}${ext}`);
+  try {
+    fs.mkdirSync(config.processedFolder, { recursive: true });
+    fs.renameSync(img.fullPath, destPath);
+  } catch (e) {
+    // fall back to copy + unlink (cross-volume)
+    try {
+      fs.copyFileSync(img.fullPath, destPath);
+      fs.unlinkSync(img.fullPath);
+    } catch (e2) {
+      console.error("[IQTS] move failed:", e2.message);
+    }
+  }
+
+  const status = img.status;
+  const shouldPrint = !config.requireConformToPrint || status === "Conforme";
+  let printed = false;
+  let printError;
+  if (shouldPrint) {
+    const zpl = buildZpl(partRef, partId);
+    const r = await sendZpl(config.printer.host, config.printer.port, zpl);
+    printed = r.ok;
+    printError = r.err;
+  }
+
+  const record = {
+    partId,
+    partRef,
+    imagePath: destPath,
+    status,
+    capturedAt: img.mtime || Date.now(),
+    station: config.station,
+    operator: config.operator,
+    notes: shouldPrint ? null : "Label not printed (Non-Conforme)",
+  };
+
+  let id = 0;
+  if (db) {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO records (partId, partRef, imagePath, status, capturedAt, station, operator, notes)
+      VALUES (@partId, @partRef, @imagePath, @status, @capturedAt, @station, @operator, @notes)
+    `);
+    const info = stmt.run(record);
+    id = info.lastInsertRowid;
+  }
+
+  const payload = {
+    ok: true,
+    id,
+    ...record,
+    imageDataUrl: readAsDataUrl(destPath),
+    printed,
+    printError,
+    skippedPrint: !shouldPrint,
+  };
+  if (mainWindow) mainWindow.webContents.send("iqts:partProcessed", payload);
+  return payload;
+}
+
+// ---------- Siemens PLC TCP listener ----------
 let plcServer = null;
 function startPlcServer() {
   if (!config.plc?.enabled) return;
@@ -196,8 +307,13 @@ function startPlcServer() {
           if (!partRef) continue;
           console.log(`[IQTS] PLC trigger: ${partRef}`);
           if (mainWindow) mainWindow.webContents.send("iqts:plcTrigger", partRef);
-          generateAndPrintLabel(partRef)
-            .then((r) => socket.write(`OK ${r.partId}\n`))
+          processPart(partRef)
+            .then((r) => {
+              if (!r.ok) socket.write(`ERR ${r.error}\n`);
+              else if (r.skippedPrint) socket.write(`OK ${r.partId} NO_PRINT (NCR)\n`);
+              else if (r.printed) socket.write(`OK ${r.partId} PRINTED\n`);
+              else socket.write(`OK ${r.partId} PRINT_FAILED ${r.printError || ""}\n`);
+            })
             .catch((e) => socket.write(`ERR ${e.message}\n`));
         }
       });
@@ -212,7 +328,7 @@ function startPlcServer() {
   }
 }
 
-// ---------- IPC handlers ----------
+// ---------- IPC ----------
 ipcMain.handle("iqts:getConfig", () => config);
 ipcMain.handle("iqts:setConfig", (_e, patch) => {
   const oldFolder = config.watchFolder;
@@ -220,70 +336,14 @@ ipcMain.handle("iqts:setConfig", (_e, patch) => {
   saveConfig(config);
   if (config.watchFolder !== oldFolder) {
     if (watcher) watcher.close();
-    pending.length = 0;
+    recent.length = 0;
     watcher = startWatcher();
   }
   return config;
 });
 
-ipcMain.handle("iqts:generateLabel", async (_e, partRef) => {
-  return generateAndPrintLabel(String(partRef).trim().toUpperCase());
-});
-
-ipcMain.handle("iqts:getPending", () => {
-  const latest = pending.length ? pending[pending.length - 1] : null;
-  return latest ? { filename: latest.filename, createdAt: latest.createdAt, status: latest.status } : null;
-});
-
-ipcMain.handle("iqts:associateScan", async (_e, partId) => {
-  const now = Date.now();
-  // pick latest within window
-  let idx = -1;
-  for (let i = pending.length - 1; i >= 0; i--) {
-    if (now - pending[i].createdAt <= config.associationWindowMs * 6) { idx = i; break; }
-  }
-  if (idx === -1) return null;
-  const img = pending.splice(idx, 1)[0];
-  const partRef = String(partId).split("T")[0];
-  const ext = path.extname(img.filename) || ".jpg";
-  const destPath = path.join(config.processedFolder, `${partId}${ext}`);
-  try {
-    fs.mkdirSync(config.processedFolder, { recursive: true });
-    fs.renameSync(img.fullPath, destPath);
-  } catch (e) {
-    console.error("[IQTS] move failed:", e.message);
-  }
-  emitPending();
-
-  const record = {
-    partId,
-    partRef,
-    imagePath: destPath,
-    status: img.status,
-    capturedAt: img.createdAt,
-    station: config.station,
-    operator: config.operator,
-    notes: null,
-  };
-  if (db) {
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO records (partId, partRef, imagePath, status, capturedAt, station, operator, notes)
-      VALUES (@partId, @partRef, @imagePath, @status, @capturedAt, @station, @operator, @notes)
-    `);
-    const info = stmt.run(record);
-    return { id: info.lastInsertRowid, ...record, imageDataUrl: readAsDataUrl(destPath) };
-  }
-  return { id: 0, ...record, imageDataUrl: readAsDataUrl(destPath) };
-});
-
-function readAsDataUrl(p) {
-  try {
-    const buf = fs.readFileSync(p);
-    const ext = (path.extname(p).slice(1) || "jpeg").toLowerCase();
-    const mime = ext === "jpg" ? "jpeg" : ext;
-    return `data:image/${mime};base64,${buf.toString("base64")}`;
-  } catch { return null; }
-}
+// Manual / UI-driven trigger (same as PLC)
+ipcMain.handle("iqts:processPart", async (_e, partRef) => processPart(partRef));
 
 ipcMain.handle("iqts:listRecent", (_e, limit = 50) => {
   if (!db) return [];
@@ -321,10 +381,8 @@ function createWindow() {
   if (fs.existsSync(indexFile)) {
     mainWindow.loadFile(indexFile);
   } else {
-    // Dev fallback (Vite dev server). Ignored in packaged app.
     mainWindow.loadURL(process.env.IQTS_DEV_URL || "http://localhost:8080");
   }
-
   mainWindow.on("closed", () => { mainWindow = null; });
 }
 

@@ -7,15 +7,25 @@ export type QualityStatus = "Conforme" | "Non-Conforme" | "Pending";
 
 export interface PartRecord {
   id: number;
-  partId: string;        // QR string, e.g. PR-12345_1714600000
-  partRef: string;       // base reference (e.g. PR-12345)
+  partId: string;
+  partRef: string;
   imagePath: string | null;
-  imageDataUrl?: string | null; // for preview rendering
+  imageDataUrl?: string | null;
   status: QualityStatus;
-  capturedAt: number;    // ms epoch
+  capturedAt: number;
   station: string;
   operator: string;
   notes?: string | null;
+}
+
+export interface ProcessResult extends Partial<PartRecord> {
+  ok: boolean;
+  partId?: string;
+  partRef?: string;
+  printed?: boolean;
+  skippedPrint?: boolean;
+  printError?: string;
+  error?: string;
 }
 
 export interface PrinterConfig {
@@ -27,27 +37,24 @@ export interface SystemConfig {
   watchFolder: string;
   processedFolder: string;
   printer: PrinterConfig;
-  associationWindowMs: number;
   station: string;
   operator: string;
+  imageWaitMs?: number;
+  requireConformToPrint?: boolean;
 }
 
 export interface IQTSApi {
   isElectron: boolean;
-  generateLabel(partRef: string): Promise<{ partId: string; zpl: string; printed: boolean; error?: string }>;
-  associateScan(partId: string): Promise<PartRecord | null>;
+  processPart(partRef: string): Promise<ProcessResult>;
   searchRecords(query: string): Promise<PartRecord[]>;
   listRecent(limit?: number): Promise<PartRecord[]>;
   getConfig(): Promise<SystemConfig>;
   setConfig(patch: Partial<SystemConfig>): Promise<SystemConfig>;
-  // demo only — simulates a fresh camera capture in mock mode
-  mockCameraCapture?(status: QualityStatus): Promise<void>;
-  // demo only — simulates a Siemens PLC print trigger in mock mode
-  mockPlcTrigger?(partRef: string): Promise<void>;
-  onPendingChange(cb: (pending: { filename: string; createdAt: number; status: QualityStatus } | null) => void): () => void;
-  getPending(): Promise<{ filename: string; createdAt: number; status: QualityStatus } | null>;
-  // PLC trigger event — fires when Siemens PLC requests a label print
   onPlcTrigger(cb: (partRef: string) => void): () => void;
+  onPartProcessed(cb: (r: ProcessResult) => void): () => void;
+  // Browser-preview helpers (not present in Electron build)
+  mockPlcTrigger?(partRef: string): Promise<void>;
+  mockSetNextImageStatus?(status: QualityStatus): void;
 }
 
 declare global {
@@ -58,40 +65,34 @@ declare global {
 
 // ---------- In-browser mock implementation ----------
 
-interface MockImage {
-  filename: string;
-  createdAt: number;
-  status: QualityStatus;
-  dataUrl: string;
-}
-
-const MOCK_KEY = "iqts.mock.v1";
+const MOCK_KEY = "iqts.mock.v2";
 
 interface MockState {
   records: PartRecord[];
-  pending: MockImage[];
   config: SystemConfig;
   nextId: number;
+  nextImageStatus: QualityStatus;
 }
 
 const defaultConfig: SystemConfig = {
   watchFolder: "C:\\IQTS\\camera_in",
   processedFolder: "C:\\IQTS\\processed",
   printer: { host: "192.168.1.50", port: 9100 },
-  associationWindowMs: 5000,
   station: "STATION-01",
   operator: "OP-001",
+  imageWaitMs: 2000,
+  requireConformToPrint: true,
 };
 
 function loadMock(): MockState {
   if (typeof localStorage === "undefined") {
-    return { records: [], pending: [], config: defaultConfig, nextId: 1 };
+    return { records: [], config: defaultConfig, nextId: 1, nextImageStatus: "Conforme" };
   }
   try {
     const raw = localStorage.getItem(MOCK_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return { nextImageStatus: "Conforme", ...JSON.parse(raw) };
   } catch {}
-  return { records: [], pending: [], config: defaultConfig, nextId: 1 };
+  return { records: [], config: defaultConfig, nextId: 1, nextImageStatus: "Conforme" };
 }
 
 function saveMock(state: MockState) {
@@ -99,51 +100,36 @@ function saveMock(state: MockState) {
   localStorage.setItem(MOCK_KEY, JSON.stringify(state));
 }
 
-type PendingPayload = { filename: string; createdAt: number; status: QualityStatus } | null;
-const listeners = new Set<(p: PendingPayload) => void>();
 const plcListeners = new Set<(partRef: string) => void>();
+const processedListeners = new Set<(r: ProcessResult) => void>();
 
-function emit(state: MockState) {
-  const latest = state.pending.length ? state.pending[state.pending.length - 1] : null;
-  const payload: PendingPayload = latest
-    ? { filename: latest.filename, createdAt: latest.createdAt, status: latest.status }
-    : null;
-  listeners.forEach((cb) => cb(payload));
-}
-
-// Generate a small synthetic JPEG-ish image as a data URL (canvas-based)
 function makeFakeCapture(status: QualityStatus): string {
   if (typeof document === "undefined") return "";
   const c = document.createElement("canvas");
   c.width = 480;
   c.height = 360;
   const ctx = c.getContext("2d")!;
-  // industrial gray background
   const grad = ctx.createLinearGradient(0, 0, 480, 360);
   grad.addColorStop(0, "#cfd6df");
   grad.addColorStop(1, "#9aa4b2");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 480, 360);
-  // mock "part"
   ctx.fillStyle = "#2b3340";
   ctx.fillRect(140, 110, 200, 140);
   ctx.strokeStyle = "#0a0d12";
   ctx.lineWidth = 3;
   ctx.strokeRect(140, 110, 200, 140);
-  // bolts
   ctx.fillStyle = "#5b6776";
   for (const [x, y] of [[160, 130], [320, 130], [160, 230], [320, 230]] as const) {
     ctx.beginPath();
     ctx.arc(x, y, 6, 0, Math.PI * 2);
     ctx.fill();
   }
-  // status banner
   ctx.fillStyle = status === "Conforme" ? "#16a34a" : status === "Non-Conforme" ? "#dc2626" : "#d97706";
   ctx.fillRect(0, 0, 480, 36);
   ctx.fillStyle = "#fff";
   ctx.font = "bold 18px Inter, sans-serif";
   ctx.fillText(`IFM Vision · ${status}`, 12, 24);
-  // timestamp
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.fillRect(0, 330, 480, 30);
   ctx.fillStyle = "#fff";
@@ -154,43 +140,44 @@ function makeFakeCapture(status: QualityStatus): string {
 
 const mockApi: IQTSApi = {
   isElectron: false,
-  async generateLabel(partRef: string) {
-    const partId = formatPartId(partRef);
-    const zpl =
-      `^XA\n^FO50,50^A0N,40,40^FD${partRef}^FS\n` +
-      `^FO50,110^BQN,2,6^FDLA,${partId}^FS\n` +
-      `^FO50,330^A0N,22,22^FD${new Date().toLocaleString()}^FS\n^XZ`;
-    return { partId, zpl, printed: false, error: "Printer not connected (preview mode)" };
-  },
-  async associateScan(partId: string) {
+
+  async processPart(partRefRaw: string) {
+    const partRef = String(partRefRaw || "").trim().toUpperCase();
+    if (!partRef) return { ok: false, error: "Empty part reference" };
+
     const state = loadMock();
-    const now = Date.now();
-    // find latest pending within window
-    const idx = [...state.pending]
-      .map((p, i) => ({ p, i }))
-      .filter(({ p }) => now - p.createdAt <= state.config.associationWindowMs * 6) // generous in mock
-      .pop();
-    if (!idx) return null;
-    const img = idx.p;
-    state.pending.splice(idx.i, 1);
-    const partRef = partId.split("T")[0] ?? partId;
+    const partId = formatPartId(partRef);
+    const status = state.nextImageStatus;
+    const imageDataUrl = makeFakeCapture(status);
+    const requireConform = state.config.requireConformToPrint !== false;
+    const shouldPrint = !requireConform || status === "Conforme";
+
     const record: PartRecord = {
       id: state.nextId++,
       partId,
       partRef,
       imagePath: `${state.config.processedFolder}\\${partId}.jpg`,
-      imageDataUrl: img.dataUrl,
-      status: img.status,
-      capturedAt: img.createdAt,
+      imageDataUrl,
+      status,
+      capturedAt: Date.now(),
       station: state.config.station,
       operator: state.config.operator,
-      notes: null,
+      notes: shouldPrint ? null : "Label not printed (Non-Conforme)",
     };
     state.records.unshift(record);
     saveMock(state);
-    emit(state);
-    return record;
+
+    const result: ProcessResult = {
+      ok: true,
+      ...record,
+      printed: false, // preview has no printer
+      skippedPrint: !shouldPrint,
+      printError: shouldPrint ? "Printer not connected (preview mode)" : undefined,
+    };
+    processedListeners.forEach((cb) => cb(result));
+    return result;
   },
+
   async searchRecords(query: string) {
     const { records } = loadMock();
     const q = query.trim().toLowerCase();
@@ -214,37 +201,21 @@ const mockApi: IQTSApi = {
     saveMock(state);
     return state.config;
   },
-  async mockCameraCapture(status) {
-    const state = loadMock();
-    const filename = `capture_${Date.now()}.jpg`;
-    state.pending.push({
-      filename,
-      createdAt: Date.now(),
-      status,
-      dataUrl: makeFakeCapture(status),
-    });
-    saveMock(state);
-    emit(state);
+  onPlcTrigger(cb) {
+    plcListeners.add(cb);
+    return () => { plcListeners.delete(cb); };
+  },
+  onPartProcessed(cb) {
+    processedListeners.add(cb);
+    return () => { processedListeners.delete(cb); };
   },
   async mockPlcTrigger(partRef: string) {
     plcListeners.forEach((cb) => cb(partRef));
   },
-  onPlcTrigger(cb) {
-    plcListeners.add(cb);
-    return () => {
-      plcListeners.delete(cb);
-    };
-  },
-  onPendingChange(cb) {
-    listeners.add(cb);
-    return () => {
-      listeners.delete(cb);
-    };
-  },
-  async getPending() {
-    const { pending } = loadMock();
-    const latest = pending[pending.length - 1];
-    return latest ? { filename: latest.filename, createdAt: latest.createdAt, status: latest.status } : null;
+  mockSetNextImageStatus(status: QualityStatus) {
+    const state = loadMock();
+    state.nextImageStatus = status;
+    saveMock(state);
   },
 };
 
