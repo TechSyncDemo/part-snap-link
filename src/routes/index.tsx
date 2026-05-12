@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { StatusBar } from "@/components/iqts/StatusBar";
 import { LabelGenerator } from "@/components/iqts/LabelGenerator";
-import { ScanCapture } from "@/components/iqts/ScanCapture";
+import { LastProcessed } from "@/components/iqts/LastProcessed";
 import { HistoryPanel } from "@/components/iqts/HistoryPanel";
-import { getBridge, type PartRecord, type SystemConfig } from "@/lib/iqts-bridge";
+import { getBridge, type PartRecord, type ProcessResult, type SystemConfig } from "@/lib/iqts-bridge";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Offline industrial quality tracking: QR-linked image acquisition, Zebra label printing, IFM camera pairing, and local SQLite archive.",
+          "Offline industrial quality tracking: PLC-driven label printing paired with IFM camera vision and local SQLite archive.",
       },
     ],
   }),
@@ -25,7 +25,7 @@ const bridge = getBridge();
 function IndexPage() {
   const [config, setConfig] = useState<SystemConfig | null>(null);
   const [partRef, setPartRef] = useState("PR-12345");
-  const [lastRecord, setLastRecord] = useState<PartRecord | null>(null);
+  const [lastResult, setLastResult] = useState<ProcessResult | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [allRecords, setAllRecords] = useState<PartRecord[]>([]);
 
@@ -46,9 +46,9 @@ function IndexPage() {
     return { count: today.length, rate };
   }, [allRecords]);
 
-  function handleScanned(rec: PartRecord) {
-    setLastRecord(rec);
-    setRefreshKey((k) => k + 1);
+  function handleProcessed(res: ProcessResult) {
+    setLastResult(res);
+    if (res.ok) setRefreshKey((k) => k + 1);
   }
 
   return (
@@ -62,21 +62,22 @@ function IndexPage() {
 
       <main className="flex-1 min-h-0 overflow-auto">
         <div className="max-w-[1600px] mx-auto px-2 sm:px-4 py-2 sm:py-3 grid gap-3 grid-cols-1 xl:grid-cols-12 xl:auto-rows-min">
-          {/* Phase A — Identification */}
           <section className="xl:col-span-5">
-            <SectionHeader phase="A" title="Identification" />
-            <LabelGenerator partRef={partRef} onPartRefChange={setPartRef} />
+            <SectionHeader phase="A" title="Operation & Trigger" />
+            <LabelGenerator
+              partRef={partRef}
+              onPartRefChange={setPartRef}
+              onProcessed={handleProcessed}
+            />
           </section>
 
-          {/* Phase B + C — Inspection & Pairing */}
           <section className="xl:col-span-7">
-            <SectionHeader phase="B · C" title="Inspection & Pairing" />
-            <ScanCapture partRef={partRef} onScanned={handleScanned} lastRecord={lastRecord} />
+            <SectionHeader phase="B" title="Vision · Pair · Print" />
+            <LastProcessed result={lastResult} />
           </section>
 
-          {/* Phase D — Retrieval */}
           <section className="xl:col-span-12">
-            <SectionHeader phase="D" title="Retrieval & Archive" />
+            <SectionHeader phase="C" title="Archive" />
             <HistoryPanel refreshKey={refreshKey} />
           </section>
 
