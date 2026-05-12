@@ -25,7 +25,7 @@ export function StatusBar({ station, operator, recordsToday, passRate }: Props) 
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-6 ml-4 text-xs">
+        <div className="flex items-center gap-4 sm:gap-6 ml-2 sm:ml-4 text-xs">
           <div>
             <p className="text-muted-foreground uppercase tracking-wider">Station</p>
             <p className="font-mono font-bold">{station}</p>
