@@ -24,10 +24,17 @@ const configPath = path.join(dataDir, "config.json");
 const defaultConfig = {
   watchFolder: path.join(dataDir, "camera_in"),
   processedFolder: path.join(dataDir, "processed"),
-  printer: { host: "192.168.1.50", port: 9100 },
+  printer: { host: "192.168.0.100", port: 9100 },
   station: os.hostname() || "STATION-01",
   operator: "OP-001",
-  plc: { listenHost: "0.0.0.0", listenPort: 9500, enabled: true },
+  plc: {
+    listenHost: "0.0.0.0",
+    listenPort: 9500,
+    enabled: true,
+    // Siemens PLC reachability target (for connection-status check)
+    deviceHost: "192.168.0.1",
+    devicePort: 102, // Siemens S7 ISO-on-TCP
+  },
   // After PLC trigger, wait up to this many ms for a fresh IFM image to arrive
   // before falling back to the most recent existing file in the watch folder.
   imageWaitMs: 2000,
