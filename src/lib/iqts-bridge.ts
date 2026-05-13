@@ -41,6 +41,27 @@ export interface SystemConfig {
   operator: string;
   imageWaitMs?: number;
   requireConformToPrint?: boolean;
+  plc?: {
+    listenHost?: string;
+    listenPort?: number;
+    enabled?: boolean;
+    deviceHost?: string;
+    devicePort?: number;
+  };
+}
+
+export interface ConnectionProbe {
+  host?: string;
+  port?: number;
+  ok: boolean;
+  err?: string;
+  latency?: number;
+}
+
+export interface ConnectionStatus {
+  printer: ConnectionProbe;
+  plc: ConnectionProbe;
+  checkedAt: number;
 }
 
 export interface IQTSApi {
@@ -50,6 +71,7 @@ export interface IQTSApi {
   listRecent(limit?: number): Promise<PartRecord[]>;
   getConfig(): Promise<SystemConfig>;
   setConfig(patch: Partial<SystemConfig>): Promise<SystemConfig>;
+  checkConnections(): Promise<ConnectionStatus>;
   onPlcTrigger(cb: (partRef: string) => void): () => void;
   onPartProcessed(cb: (r: ProcessResult) => void): () => void;
   // Browser-preview helpers (not present in Electron build)
@@ -77,11 +99,12 @@ interface MockState {
 const defaultConfig: SystemConfig = {
   watchFolder: "C:\\IQTS\\camera_in",
   processedFolder: "C:\\IQTS\\processed",
-  printer: { host: "192.168.1.50", port: 9100 },
+  printer: { host: "192.168.0.100", port: 9100 },
   station: "STATION-01",
   operator: "OP-001",
   imageWaitMs: 2000,
   requireConformToPrint: true,
+  plc: { listenHost: "0.0.0.0", listenPort: 9500, enabled: true, deviceHost: "192.168.0.1", devicePort: 102 },
 };
 
 function loadMock(): MockState {
@@ -200,6 +223,15 @@ const mockApi: IQTSApi = {
     state.config = { ...state.config, ...patch, printer: { ...state.config.printer, ...(patch.printer ?? {}) } };
     saveMock(state);
     return state.config;
+  },
+  async checkConnections() {
+    // In preview, simulate: printer often unreachable, PLC simulated as ok if armed
+    const cfg = loadMock().config;
+    return {
+      printer: { host: cfg.printer.host, port: cfg.printer.port, ok: false, err: "preview mode" },
+      plc: { host: cfg.plc?.deviceHost, port: cfg.plc?.devicePort, ok: false, err: "preview mode" },
+      checkedAt: Date.now(),
+    };
   },
   onPlcTrigger(cb) {
     plcListeners.add(cb);
