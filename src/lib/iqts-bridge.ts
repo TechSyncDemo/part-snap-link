@@ -41,6 +41,27 @@ export interface SystemConfig {
   operator: string;
   imageWaitMs?: number;
   requireConformToPrint?: boolean;
+  plc?: {
+    listenHost?: string;
+    listenPort?: number;
+    enabled?: boolean;
+    deviceHost?: string;
+    devicePort?: number;
+  };
+}
+
+export interface ConnectionProbe {
+  host?: string;
+  port?: number;
+  ok: boolean;
+  err?: string;
+  latency?: number;
+}
+
+export interface ConnectionStatus {
+  printer: ConnectionProbe;
+  plc: ConnectionProbe;
+  checkedAt: number;
 }
 
 export interface IQTSApi {
@@ -50,6 +71,7 @@ export interface IQTSApi {
   listRecent(limit?: number): Promise<PartRecord[]>;
   getConfig(): Promise<SystemConfig>;
   setConfig(patch: Partial<SystemConfig>): Promise<SystemConfig>;
+  checkConnections(): Promise<ConnectionStatus>;
   onPlcTrigger(cb: (partRef: string) => void): () => void;
   onPartProcessed(cb: (r: ProcessResult) => void): () => void;
   // Browser-preview helpers (not present in Electron build)
