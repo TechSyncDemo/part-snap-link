@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("iqts", {
   listRecent: (limit) => ipcRenderer.invoke("iqts:listRecent", limit),
   getConfig: () => ipcRenderer.invoke("iqts:getConfig"),
   setConfig: (patch) => ipcRenderer.invoke("iqts:setConfig", patch),
+  checkConnections: () => ipcRenderer.invoke("iqts:checkConnections"),
   onPlcTrigger: (cb) => { plcListeners.add(cb); return () => plcListeners.delete(cb); },
   onPartProcessed: (cb) => { processedListeners.add(cb); return () => processedListeners.delete(cb); },
 });
