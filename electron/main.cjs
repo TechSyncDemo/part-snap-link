@@ -352,6 +352,42 @@ ipcMain.handle("iqts:setConfig", (_e, patch) => {
 // Manual / UI-driven trigger (same as PLC)
 ipcMain.handle("iqts:processPart", async (_e, partRef) => processPart(partRef));
 
+// TCP reachability probe
+function tcpProbe(host, port, timeoutMs = 1500) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let done = false;
+    const finish = (ok, err) => {
+      if (done) return;
+      done = true;
+      try { socket.destroy(); } catch {}
+      const latency = Date.now() - start;
+      resolve({ ok, err, latency });
+    };
+    const start = Date.now();
+    socket.setTimeout(timeoutMs);
+    socket.once("timeout", () => finish(false, "timeout"));
+    socket.once("error", (e) => finish(false, e.code || e.message));
+    socket.connect(port, host, () => finish(true));
+  });
+}
+
+ipcMain.handle("iqts:checkConnections", async () => {
+  const printerHost = config.printer?.host;
+  const printerPort = config.printer?.port || 9100;
+  const plcHost = config.plc?.deviceHost;
+  const plcPort = config.plc?.devicePort || 102;
+  const [printer, plc] = await Promise.all([
+    printerHost ? tcpProbe(printerHost, printerPort) : Promise.resolve({ ok: false, err: "no host" }),
+    plcHost ? tcpProbe(plcHost, plcPort) : Promise.resolve({ ok: false, err: "no host" }),
+  ]);
+  return {
+    printer: { host: printerHost, port: printerPort, ...printer },
+    plc: { host: plcHost, port: plcPort, ...plc },
+    checkedAt: Date.now(),
+  };
+});
+
 ipcMain.handle("iqts:listRecent", (_e, limit = 50) => {
   if (!db) return [];
   const rows = db.prepare(`SELECT * FROM records ORDER BY capturedAt DESC LIMIT ?`).all(limit);
