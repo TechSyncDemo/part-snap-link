@@ -104,6 +104,7 @@ const defaultConfig: SystemConfig = {
   operator: "OP-001",
   imageWaitMs: 2000,
   requireConformToPrint: true,
+  plc: { listenHost: "0.0.0.0", listenPort: 9500, enabled: true, deviceHost: "192.168.0.1", devicePort: 102 },
 };
 
 function loadMock(): MockState {
