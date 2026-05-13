@@ -224,6 +224,15 @@ const mockApi: IQTSApi = {
     saveMock(state);
     return state.config;
   },
+  async checkConnections() {
+    // In preview, simulate: printer often unreachable, PLC simulated as ok if armed
+    const cfg = loadMock().config;
+    return {
+      printer: { host: cfg.printer.host, port: cfg.printer.port, ok: false, err: "preview mode" },
+      plc: { host: cfg.plc?.deviceHost, port: cfg.plc?.devicePort, ok: false, err: "preview mode" },
+      checkedAt: Date.now(),
+    };
+  },
   onPlcTrigger(cb) {
     plcListeners.add(cb);
     return () => { plcListeners.delete(cb); };
