@@ -99,7 +99,7 @@ interface MockState {
 const defaultConfig: SystemConfig = {
   watchFolder: "C:\\IQTS\\camera_in",
   processedFolder: "C:\\IQTS\\processed",
-  printer: { host: "192.168.1.50", port: 9100 },
+  printer: { host: "192.168.0.100", port: 9100 },
   station: "STATION-01",
   operator: "OP-001",
   imageWaitMs: 2000,
